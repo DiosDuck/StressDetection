@@ -3,34 +3,39 @@ package com.example.frontend;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.DefaultItemAnimator;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
-import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
+import android.widget.RadioButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.frontend.okhttp.Client;
-import com.example.frontend.okhttp.PredictBody;
-import com.example.frontend.okhttp.Repo;
-import com.example.frontend.utils.PCMtoWAV;;
+import com.example.frontend.okhttp.MultipleStressResponse;
+import com.example.frontend.okhttp.StressResponse;
+import com.example.frontend.utils.PCMtoWAV;
+import com.example.frontend.utils.RecicleViewResults;;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
 import okhttp3.OkHttpClient;
 import okhttp3.RequestBody;
-import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -44,6 +49,10 @@ public class MainActivity extends AppCompatActivity {
     private TextView text;
 
     private Button send,stop,record;
+
+    private List<StressResponse> stressResponseList;
+    private RecyclerView recicleViewResults;
+
     private MediaRecorder mediaRecorder;
     private String outputFile,outputFilePCM;
 
@@ -55,6 +64,9 @@ public class MainActivity extends AppCompatActivity {
     private int BytesPerElement = 2; // 2 bytes in 16bit format
 
 
+    private String language="RO";
+    private String output="2";
+
     final int REQUEST_PERMISSION_CODE=1000;
 
     @Override
@@ -62,11 +74,20 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        stressResponseList=new ArrayList<>();
         text=(TextView) findViewById(R.id.text) ;
 
         send =findViewById(R.id.send);
         stop=findViewById(R.id.stop);
         record=findViewById(R.id.record);
+
+        RecicleViewResults adaper=new RecicleViewResults(stressResponseList);
+        recicleViewResults=findViewById(R.id.list_results);
+        RecyclerView.LayoutManager layoutManager=new LinearLayoutManager(getApplicationContext());
+        recicleViewResults.setLayoutManager(layoutManager);
+        recicleViewResults.setItemAnimator(new DefaultItemAnimator());
+        recicleViewResults.setAdapter(adaper);
+
         stop.setEnabled(false);
         send.setEnabled(false);
         outputFile = getFilesDir().getAbsolutePath() + "/recording.wav";
@@ -146,18 +167,23 @@ public class MainActivity extends AppCompatActivity {
                 MultipartBody.Part body=
                         MultipartBody.Part.createFormData("audio",file.getName(),fileBody);
 
+                RequestBody languageBody=RequestBody.create(MultipartBody.FORM,language);
 
+                RequestBody outputBody=RequestBody.create(MultipartBody.FORM,output);
 
-                Call<PredictBody> call=client.predict(nameBody,body);
+                text.setText("Sending...");
 
-                call.enqueue(new Callback<PredictBody>() {
+                Call<MultipleStressResponse> call=client.predict(nameBody,body,languageBody,outputBody);
+
+                call.enqueue(new Callback<MultipleStressResponse>() {
                     @Override
-                    public void onResponse(Call<PredictBody> call, Response<PredictBody> response) {
+                    public void onResponse(Call<MultipleStressResponse> call, Response<MultipleStressResponse> response) {
                         if(response.isSuccessful()){
                             response.body();
-                            String message=response.body().getMessage();
-                            String stress=response.body().getStress();
-                            text.setText("Message: "+message+"\n"+"Stress: "+stress);
+                            stressResponseList.clear();
+                            stressResponseList.addAll(response.body().getResults());
+                            adaper.notifyDataSetChanged();
+                            text.setText("Sent!");
                         }
                         else{
                             Toast.makeText(getApplicationContext(),response.errorBody().toString(),Toast.LENGTH_SHORT).show();
@@ -166,7 +192,7 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                     @Override
-                    public void onFailure(Call<PredictBody> call, Throwable t) {
+                    public void onFailure(Call<MultipleStressResponse> call, Throwable t) {
                         text.setText(t.toString());
                     }
                 });
@@ -239,4 +265,31 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public void clickLanguageRadio(View view) {
+        boolean checked=((RadioButton) view).isChecked();
+        switch (view.getId()){
+            case R.id.language_ro:
+                if (checked)
+                    language="RO";
+                break;
+            case R.id.language_en:
+                if (checked)
+                    language="EN";
+                break;
+        }
+    }
+
+    public void clickOutputRadio(View view) {
+        boolean checked=((RadioButton) view).isChecked();
+        switch (view.getId()){
+            case R.id.output_2:
+                if (checked)
+                    output="2";
+                break;
+            case R.id.output_4:
+                if (checked)
+                    output="4";
+                break;
+        }
+    }
 }

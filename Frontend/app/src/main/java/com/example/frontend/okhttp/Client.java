@@ -1,7 +1,5 @@
 package com.example.frontend.okhttp;
 
-import java.util.List;
-
 import okhttp3.MultipartBody;
 import okhttp3.RequestBody;
 import okhttp3.ResponseBody;
@@ -23,9 +21,11 @@ public interface Client {
             );
 
     @Multipart
-    @POST("/predict/")
-    Call<PredictBody> predict(
+    @POST("/predict_advanced/")
+    Call<MultipleStressResponse> predict(
             @Part("name") RequestBody name,
-            @Part MultipartBody.Part audio
+            @Part MultipartBody.Part audio,
+            @Part("language") RequestBody language,
+            @Part("output") RequestBody output
     );
 }

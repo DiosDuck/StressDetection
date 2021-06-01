@@ -4,7 +4,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".MainActivity">
+    tools:context=".MainActivity"
+    >
 
     <Button
         android:layout_width="wrap_content"
@@ -25,13 +26,59 @@
         android:layout_marginTop="30dp"
         android:layout_centerHorizontal="true"
         />
+
+    <RadioGroup
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="30dp"
+        android:layout_below="@id/stop"
+        android:id="@+id/language"
+        android:gravity="center">
+        <RadioButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/language_ro"
+            android:checked="true"
+            android:onClick="clickLanguageRadio"
+            android:text="RO"/>
+        <RadioButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/language_en"
+            android:onClick="clickLanguageRadio"
+            android:text="EN"/>
+    </RadioGroup>
+    <RadioGroup
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="30dp"
+        android:layout_below="@id/language"
+        android:id="@+id/output"
+        android:gravity="center">
+        <RadioButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/output_2"
+            android:onClick="clickOutputRadio"
+            android:checked="true"
+            android:text="Stress/Not stressed"/>
+        <RadioButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/output_4"
+            android:onClick="clickOutputRadio"
+            android:text="Not stressed/Emotion"/>
+    </RadioGroup>
+
     <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Send"
         android:textSize="20sp"
         android:id="@+id/send"
-        android:layout_below="@id/stop"
+        android:layout_below="@id/output"
         android:layout_marginTop="30dp"
         android:layout_centerHorizontal="true"
         />
@@ -44,5 +91,13 @@
         android:layout_below="@id/send"
         android:layout_marginTop="30dp"
         android:layout_centerHorizontal="true" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/list_results"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/text"
+        android:layout_marginTop="30dp"
+        />
 
 </RelativeLayout>

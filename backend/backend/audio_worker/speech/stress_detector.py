@@ -1,78 +1,75 @@
 import librosa
 import soundfile
-import os, glob, pickle
 import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.neural_network import MLPClassifier
-from sklearn.metrics import accuracy_score
-from sklearn.preprocessing import StandardScaler
+from .standard_scale import Scale
+from .PytorchANN import Net4
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 class StressDetector:
     # DataFlair - Extract features (mfcc, chroma, mel) from a sound file
-    def __extract_feature(self,file_name, mfcc=True, chroma=True, mel=True):
+    def __extract_feature(self,file_name, n_mfcc=20, mfcc_mean=False, mfcc_std=False, chroma_cqt_mean=False,
+                        chroma_cqt_std=False,
+                        mel_mean=False, mel_std=False, chroma_stft_mean=False, chroma_stft_std=False):
         with soundfile.SoundFile(file_name) as sound_file:
             X = sound_file.read(dtype="float32")
             sample_rate = sound_file.samplerate
-            if chroma:
-                stft = np.abs(librosa.stft(X))
             result = np.array([])
-            if mfcc:
-                mfccs = np.mean(librosa.feature.mfcc(y=X, sr=sample_rate, n_mfcc=40).T, axis=0)
-                result = np.hstack((result, mfccs))
-            if chroma:
-                chroma = np.mean(librosa.feature.chroma_stft(S=stft, sr=sample_rate).T, axis=0)
-                result = np.hstack((result, chroma))
-        if mel:
-            mel = np.mean(librosa.feature.melspectrogram(X, sr=sample_rate).T, axis=0)
-            result = np.hstack((result, mel))
+            if mfcc_mean:
+                mfcc_mean = np.mean(librosa.feature.mfcc(y=X, sr=sample_rate, n_mfcc=n_mfcc).T, axis=0)
+                result = np.hstack((result, mfcc_mean))
+            if mfcc_std:
+                mfcc_std = np.std(librosa.feature.mfcc(y=X, sr=sample_rate, n_mfcc=n_mfcc).T, axis=0)
+                result = np.hstack((result, mfcc_std))
+            if chroma_stft_mean:
+                stft = np.abs(librosa.stft(X))
+                chroma_stft_mean = np.mean(librosa.feature.chroma_stft(S=stft, sr=sample_rate).T, axis=0)
+                result = np.hstack((result, chroma_stft_mean))
+            if chroma_stft_std:
+                stft = np.abs(librosa.stft(X))
+                chroma_stft_std = np.std(librosa.feature.chroma_stft(S=stft, sr=sample_rate).T, axis=0)
+                result = np.hstack((result, chroma_stft_std))
+            if chroma_cqt_mean:
+                cqt = np.abs(librosa.cqt(X))
+                chroma_cqt_mean = np.mean(librosa.feature.chroma_cqt(C=cqt, sr=sample_rate).T, axis=0)
+                result = np.hstack((result, chroma_cqt_mean))
+            if chroma_cqt_std:
+                cqt = np.abs(librosa.cqt(X))
+                chroma_cqt_std = np.std(librosa.feature.chroma_cqt(C=cqt, sr=sample_rate).T, axis=0)
+                result = np.hstack((result, chroma_cqt_std))
+            if mel_mean:
+                mel_mean = np.mean(librosa.feature.melspectrogram(X, sr=sample_rate).T, axis=0)
+                result = np.hstack((result, mel_mean))
+            if mel_std:
+                mel_std = np.std(librosa.feature.melspectrogram(X, sr=sample_rate).T, axis=0)
+                result = np.hstack((result, mel_std))
         return result
 
-    def __load_data(self,test_size=0.2):
-        emotions = {
-            '01': 'neutral',
-            '02': 'calm',
-            '03': 'happy',
-            '04': 'sad',
-            '05': 'angry',
-            '06': 'fearful',
-            '07': 'disgust',
-            '08': 'surprised'
-        }
-        observed_stress = ['sad', 'angry', 'fearful']
-        x, y = [], []
-        for file in glob.glob("audio_worker\\speech\\speech-emotion-recognition-ravdess-data\\Actor_*\\*.wav"):
-            file_name = os.path.basename(file)
-            emotion = emotions[file_name.split("-")[2]]
-            if emotion in observed_stress:
-                stress = "True"
-            else:
-                stress = "False"
-            '''if emotion not in observed_emotions:
-                continue
-                '''
-            feature = self.__extract_feature(file, mfcc=True, chroma=True, mel=True)
-            x.append(feature)
-            y.append(stress)
-        return train_test_split(np.array(x), y, test_size=test_size, random_state=9)
-
     def __fit(self):
-        # DataFlair - Split the dataset
-        x_train, x_test, y_train, y_test = self.__load_data(test_size=0.2)
-        self.__scaler = StandardScaler()
-        self.__scaler.fit(x_train)
-        x_train = self.__scaler.transform(x_train)
+        #scale
+        self.__scale=Scale()
+        self.__scale.prebuild(".\\audio_worker\\speech\\utils\\mfcc20cqtall.txt")
 
-        # DataFlair - Initialize the Multi Layer Perceptron Classifier
-        self.__model = MLPClassifier(alpha=0.01, batch_size=256, epsilon=1e-09, hidden_layer_sizes=(300,),
-                              learning_rate='adaptive', max_iter=500)
+        #ann
+        self.__ann2=Net4(n=64,o=2)
+        self.__ann2.load_state_dict(torch.load(".\\audio_worker\\speech\\utils\\Adam4MFCC20CQTall2.txt"))
+        self.__ann4=Net4(n=64,o=4)
+        self.__ann4.load_state_dict(torch.load(".\\audio_worker\\speech\\utils\\Adam4MFCC20CQTall4.txt"))
 
-        # DataFlair - Train the model
-        self.__model.fit(x_train, y_train)
-
+        #labels
+        self.__label2=['Stress','No stress']
+        self.__label4=['fearful','sad','angry','No stress']
 
     def __init__(self):
         self.__fit()
 
-    def predict(self,file):
-        x=self.__scaler.transform([self.__extract_feature(file)])
-        return self.__model.predict(x)[0]
+    def predict2(self,file):
+        x=self.__scale.transform(np.array([self.__extract_feature(file,mfcc_mean=True,mfcc_std=True,chroma_cqt_mean=True,chroma_cqt_std=True)]))
+        x=torch.from_numpy(x).type(torch.FloatTensor).view(-1,64)
+        return self.__label2[torch.argmax(self.__ann2(x))]
+
+    def predict4(self,file):
+        x=self.__scale.transform(np.array([self.__extract_feature(file,mfcc_mean=True,mfcc_std=True,chroma_cqt_mean=True,chroma_cqt_std=True)]))
+        x = torch.from_numpy(x).type(torch.FloatTensor).view(-1, 64)
+        return self.__label4[torch.argmax(self.__ann4(x))]
